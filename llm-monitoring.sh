@@ -51,13 +51,14 @@ progress_bar() {
     local bar_color=$(get_color $percent 80)
     
     printf "${bar_color}["
-    if [[ $filled -gt 0 ]]; then
-        printf "#%.0s" $(seq 1 $filled)
-    fi
+    local i
+    for ((i=0; i<filled; i++)); do
+        printf "#"
+    done
     printf "${NC}"
-    if [[ $empty -gt 0 ]]; then
-        printf "-%.0s" $(seq 1 $empty)
-    fi
+    for ((i=0; i<empty; i++)); do
+        printf "-"
+    done
     printf "${NC}]"
     printf " %3d%%" $percent
 }
@@ -117,28 +118,6 @@ get_gpu_fan() {
         echo "${fan:-N/A}%"
     else
         echo "N/A%"
-    fi
-}
-
-# Get top GPU-consuming processes
-get_gpu_processes() {
-    if command -v nvidia-smi &> /dev/null; then
-        local processes=$(nvidia-smi --query=process_name,process_id,gpu_memory_usage --format=csv,noheader,nounits 2>/dev/null | head -5)
-        if [[ -n "$processes" ]]; then
-            echo -e "${CYAN}"
-            echo "$processes" | while IFS=',' read -r name pid mem; do
-                name=$(echo "$name" | tr -d ' ')
-                mem=$(echo "$mem" | tr -d ' ')
-                if [[ -n "$name" && -n "$mem" ]]; then
-                    printf "  %-25s %6s MB  (PID %s)\n" "$name" "$mem" "$pid"
-                fi
-            done
-            echo -e "${NC}"
-        else
-            echo -e "${YELLOW}  No GPU processes running${NC}"
-        fi
-    else
-        echo -e "${YELLOW}  GPU not detected${NC}"
     fi
 }
 
@@ -307,13 +286,6 @@ display() {
     
     echo ""
     
-    # GPU processes
-    echo -e "${WHITE}=== Top GPU Processes ===${NC}"
-    echo ""
-    get_gpu_processes
-    
-    echo ""
-    
     # Git section
     echo -e "${WHITE}=== Git Statistics ===${NC}"
     echo ""
@@ -389,8 +361,10 @@ main() {
     local paused=false
     local last_refresh=0
     
-    # Disable echo and set up raw mode
-    stty -echo
+    # Disable echo if running interactively
+    if [[ -t 0 ]]; then
+        stty -echo 2>/dev/null || true
+    fi
     
     while true; do
         # Check for key press (non-blocking)
