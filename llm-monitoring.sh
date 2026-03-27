@@ -67,8 +67,8 @@ print_header() {
  | |__| | ___  __ _ _ __ ___  | |_) | | __ _ _ __ | |_  
  |  __  |/ _ \/ _` | '__/ _ \ |  _ <| |/ _` | '_ \| __| 
  | |  | |  __/ (_| | | |  __/ | |_) | | (_| | | | | |_  
- |_|  |_|\\___|\\__,_|_|  \\___| |____/|_|\\__,_|_| |_|\\__| 
-                                                       
+ |_|  |_|\___|\__,_|_|  \___| |____/|_|\__,_|_| |_|_|\__| 
+                                                         
 EOF
     echo -e "${NC}"
 }
@@ -112,13 +112,20 @@ get_gpu_fan() {
 # Get top GPU-consuming processes
 get_gpu_processes() {
     if command -v nvidia-smi &> /dev/null; then
-        echo -e "${CYAN}$(nvidia-smi --query=process_name,process_id,gpu_memory_usage --format=csv,noheader,nounits 2>/dev/null | head -5 | while IFS=',' read -r name pid mem; do
-            name=$(echo "$name" | tr -d ' ')
-            mem=$(echo "$mem" | tr -d ' ')
-            if [[ -n "$name" && -n "$mem" ]]; then
-                printf "  %-25s %6s MB  (PID %s)\n" "$name" "$mem" "$pid"
-            fi
-        done)${NC}"
+        local processes=$(nvidia-smi --query=process_name,process_id,gpu_memory_usage --format=csv,noheader,nounits 2>/dev/null | head -5)
+        if [[ -n "$processes" ]]; then
+            echo -e "${CYAN}"
+            echo "$processes" | while IFS=',' read -r name pid mem; do
+                name=$(echo "$name" | tr -d ' ')
+                mem=$(echo "$mem" | tr -d ' ')
+                if [[ -n "$name" && -n "$mem" ]]; then
+                    printf "  %-25s %6s MB  (PID %s)\n" "$name" "$mem" "$pid"
+                fi
+            done
+            echo -e "${NC}"
+        else
+            echo -e "${YELLOW}  No GPU processes running${NC}"
+        fi
     else
         echo -e "${YELLOW}  GPU not detected${NC}"
     fi
@@ -222,17 +229,18 @@ get_project_name() {
 
 # Show help
 show_help() {
-    echo -e "${CYAN}========================================${NC}"
-    echo -e "${WHITE}          KEYBOARD CONTROLS${NC}"
-    echo -e "${CYAN}========================================${NC}"
+    echo -e "${WHITE}"
+    echo "=========================================="
+    echo "        KEYBOARD CONTROLS"
+    echo "=========================================="
     echo ""
-    echo -e "  ${GREEN}q${NC}     - Quit"
-    echo -e "  ${GREEN}r${NC}     - Refresh now"
-    echo -e "  ${GREEN}h${NC}     - Show this help"
-    echo -e "  ${GREEN}space${NC} - Pause/resume auto-refresh"
-    echo -e "  ${GREEN}↑/↓${NC}  - Navigate (future feature)"
+    echo "  q     - Quit"
+    echo "  r     - Refresh now"
+    echo "  h     - Show this help"
+    echo "  space - Pause/resume auto-refresh"
     echo ""
-    echo -e "${CYAN}========================================${NC}"
+    echo "=========================================="
+    echo -e "${NC}"
 }
 
 # Main display function
@@ -368,24 +376,63 @@ main() {
     sleep 1
     
     local paused=false
+    local last_refresh=0
+    
+    # Disable echo and set up raw mode
+    stty -echo
     
     while true; do
+        # Check for key press (non-blocking)
         if [[ "$paused" == false ]]; then
-            display "$project_path"
+            # Read a key with timeout
+            local key
+            read -t 0.1 -n 1 key 2>/dev/null || key=""
+            
+            case "$key" in
+                q)
+                    echo -e "${NC}\nExiting...\n"
+                    stty echo
+                    exit 0
+                    ;;
+                r)
+                    display "$project_path"
+                    last_refresh=$(date +%s)
+                    ;;
+                h)
+                    clear
+                    show_help
+                    sleep 1
+                    display "$project_path"
+                    last_refresh=$(date +%s)
+                    ;;
+                " ")
+                    paused=true
+                    ;;
+            esac
         else
-            clear
-            cat << 'EOF'
-  ┌──────────────────────────────────────┐
-  │                                      │
-  │         PAUSED - Press SPACE to      │
-  │         resume auto-refresh          │
-  │                                      │
-  └──────────────────────────────────────┘
-EOF
+            # In pause mode, wait for space to resume
+            local key
+            read -t 0.1 -n 1 key 2>/dev/null || key=""
+            
+            case "$key" in
+                q)
+                    echo -e "${NC}\nExiting...\n"
+                    stty echo
+                    exit 0
+                    ;;
+                " ")
+                    paused=false
+                    display "$project_path"
+                    last_refresh=$(date +%s)
+                    ;;
+            esac
         fi
         
-        if [[ "$paused" == false ]]; then
-            sleep 5
+        # Auto-refresh every 5 seconds
+        local now=$(date +%s)
+        if [[ $((now - last_refresh)) -ge 5 ]]; then
+            display "$project_path"
+            last_refresh=$now
         fi
     done
 }
