@@ -7,10 +7,13 @@
 # Displays VRAM usage, RAM usage, and git statistics in a clean ASCII layout.
 # 
 # Features:
-# - VRAM usage via nvidia-smi (compact format)
-# - RAM usage percentage
+# - VRAM usage with progress bar
+# - GPU temperature and fan speed
+# - Top GPU-consuming processes
+# - RAM usage with progress bar
 # - Git metrics: uncommitted lines, commit count, time since last commit
 # - Simplified commit list with timestamps
+# - Hotkeys: q=quit, r=refresh now, h=help, space=pause/resume
 # - Auto-refresh every 5 seconds
 # - Color-coded thresholds
 # ==============================================================================
@@ -38,6 +41,23 @@ get_color() {
     fi
 }
 
+# Progress bar
+progress_bar() {
+    local percent=$1
+    local width=${2:-40}
+    local filled=$((percent * width / 100))
+    local empty=$((width - filled))
+    
+    local bar_color=$(get_color $percent 80)
+    
+    printf "${bar_color}["
+    printf "#%.0s" $(seq 1 $filled)
+    printf "${NC}"
+    printf "-%.0s" $(seq 1 $empty)
+    printf "${NC}]"
+    printf " %3d%%" $percent
+}
+
 # ASCII Art Header
 print_header() {
     echo -e "${CYAN}"
@@ -47,7 +67,7 @@ print_header() {
  | |__| | ___  __ _ _ __ ___  | |_) | | __ _ _ __ | |_  
  |  __  |/ _ \/ _` | '__/ _ \ |  _ <| |/ _` | '_ \| __| 
  | |  | |  __/ (_| | | |  __/ | |_) | | (_| | | | | |_  
- |_|  |_|\___|\__,_|_|  \___| |____/|_|\__,_|_| |_|\__| 
+ |_|  |_|\\___|\\__,_|_|  \\___| |____/|_|\\__,_|_| |_|\\__| 
                                                        
 EOF
     echo -e "${NC}"
@@ -56,7 +76,6 @@ EOF
 # Get VRAM usage from nvidia-smi
 get_vram_usage() {
     if command -v nvidia-smi &> /dev/null; then
-        # Get memory usage in compact format
         local vram_info=$(nvidia-smi --query-gpu=memory.used,memory.total --format=csv,noheader,nounits 2>/dev/null | head -1)
         if [[ -n "$vram_info" ]]; then
             local used=$(echo "$vram_info" | cut -d',' -f1 | tr -d ' ')
@@ -69,6 +88,40 @@ get_vram_usage() {
         fi
     fi
     echo "N/A"
+}
+
+# Get GPU temperature and fan speed
+get_gpu_temp() {
+    if command -v nvidia-smi &> /dev/null; then
+        local temp=$(nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits 2>/dev/null | head -1 | tr -d ' ')
+        echo "${temp:-N/A}"
+    else
+        echo "N/A"
+    fi
+}
+
+get_gpu_fan() {
+    if command -v nvidia-smi &> /dev/null; then
+        local fan=$(nvidia-smi --query-gpu=fan.speed --format=csv,noheader,nounits 2>/dev/null | head -1 | tr -d ' ')
+        echo "${fan:-N/A}%"
+    else
+        echo "N/A%"
+    fi
+}
+
+# Get top GPU-consuming processes
+get_gpu_processes() {
+    if command -v nvidia-smi &> /dev/null; then
+        echo -e "${CYAN}$(nvidia-smi --query=process_name,process_id,gpu_memory_usage --format=csv,noheader,nounits 2>/dev/null | head -5 | while IFS=',' read -r name pid mem; do
+            name=$(echo "$name" | tr -d ' ')
+            mem=$(echo "$mem" | tr -d ' ')
+            if [[ -n "$name" && -n "$mem" ]]; then
+                printf "  %-25s %6s MB  (PID %s)\n" "$name" "$mem" "$pid"
+            fi
+        done)${NC}"
+    else
+        echo -e "${YELLOW}  GPU not detected${NC}"
+    fi
 }
 
 # Get RAM usage percentage
@@ -167,6 +220,21 @@ get_project_name() {
     basename "$repo_dir"
 }
 
+# Show help
+show_help() {
+    echo -e "${CYAN}========================================${NC}"
+    echo -e "${WHITE}          KEYBOARD CONTROLS${NC}"
+    echo -e "${CYAN}========================================${NC}"
+    echo ""
+    echo -e "  ${GREEN}q${NC}     - Quit"
+    echo -e "  ${GREEN}r${NC}     - Refresh now"
+    echo -e "  ${GREEN}h${NC}     - Show this help"
+    echo -e "  ${GREEN}space${NC} - Pause/resume auto-refresh"
+    echo -e "  ${GREEN}↑/↓${NC}  - Navigate (future feature)"
+    echo ""
+    echo -e "${CYAN}========================================${NC}"
+}
+
 # Main display function
 display() {
     clear
@@ -188,21 +256,42 @@ display() {
     echo -e "${WHITE}=== Resource Usage ===${NC}"
     echo ""
     
+    # VRAM with progress bar
     local vram=$(get_vram_usage)
     if [[ "$vram" == "N/A" ]]; then
         echo -e "${WHITE}VRAM:${NC} ${YELLOW}GPU not detected${NC}"
     else
-        local vram_color=$(get_color $vram 80)
-        echo -e "${WHITE}VRAM:${NC} $vram_color${vram}%${NC}"
+        printf "${WHITE}VRAM:${NC} "
+        progress_bar $vram 30
+        echo ""
     fi
     
+    # GPU temp and fan
+    local temp=$(get_gpu_temp)
+    local fan=$(get_gpu_fan)
+    if [[ "$temp" != "N/A" ]]; then
+        local temp_color=$(get_color $temp 85)
+        echo -e "  ${WHITE}Temp:${NC} $temp_color${temp}°C${NC}   ${WHITE}Fan:${NC} ${CYAN}$fan${NC}"
+    fi
+    
+    echo ""
+    
+    # RAM with progress bar
     local ram=$(get_ram_usage)
     if [[ "$ram" == "N/A" ]]; then
         echo -e "${WHITE}RAM:${NC} ${YELLOW}N/A${NC}"
     else
-        local ram_color=$(get_color $ram 80)
-        echo -e "${WHITE}RAM:${NC} $ram_color${ram}%${NC}"
+        printf "${WHITE}RAM:${NC} "
+        progress_bar $ram 30
+        echo ""
     fi
+    
+    echo ""
+    
+    # GPU processes
+    echo -e "${WHITE}=== Top GPU Processes ===${NC}"
+    echo ""
+    get_gpu_processes
     
     echo ""
     
@@ -249,7 +338,7 @@ display() {
     
     echo ""
     echo -e "$(printf '=%.0s' {1..60})"
-    echo -e "${WHITE}Press Ctrl+C to exit${NC}"
+    echo -e "${WHITE}Press ${GREEN}q${NC} to quit | ${GREEN}r${NC} to refresh | ${GREEN}h${NC} for help | ${GREEN}space${NC} to pause"
     echo -e "${WHITE}Auto-refresh: 5 seconds${NC}"
 }
 
@@ -275,10 +364,29 @@ main() {
     
     # Clear screen and start loop
     clear
+    show_help
+    sleep 1
+    
+    local paused=false
     
     while true; do
-        display "$project_path"
-        sleep 5
+        if [[ "$paused" == false ]]; then
+            display "$project_path"
+        else
+            clear
+            cat << 'EOF'
+  ┌──────────────────────────────────────┐
+  │                                      │
+  │         PAUSED - Press SPACE to      │
+  │         resume auto-refresh          │
+  │                                      │
+  └──────────────────────────────────────┘
+EOF
+        fi
+        
+        if [[ "$paused" == false ]]; then
+            sleep 5
+        fi
     done
 }
 
