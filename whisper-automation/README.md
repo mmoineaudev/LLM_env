@@ -5,9 +5,11 @@ Automated workflow for whisper.cpp installation, building, and audio transcripti
 ## Features
 
 - **Flexible installation**: Clone whisper.cpp from GitHub if no path provided, or use existing installation
+- **Build detection**: Checks if whisper.cpp is already built; skips or rebuilds as needed
 - **Automatic ffmpeg setup**: Detects and installs ffmpeg if missing (required for audio conversion)
 - **Audio format support**: Automatically converts .mp4 and .mp3 files to .wav format
 - **Model selection**: Choose from multiple whisper models (tiny through large-v3)
+- **Model download helper**: Optional step to download additional models before transcription
 - **Language selection**: Supports 20+ languages for transcription
 - **Clean transcript output**: Saves transcription without timestamps to a text file
 
@@ -20,13 +22,14 @@ Automated workflow for whisper.cpp installation, building, and audio transcripti
 ## Workflow
 
 1. **Installation Path**: Enter whisper.cpp installation path (press Enter to clone from GitHub)
-2. **Build**: Automatically builds whisper.cpp using cmake
+2. **Build Check**: Detects existing build; asks to rebuild if found
 3. **ffmpeg Check**: Verifies ffmpeg is installed, installs if needed
 4. **Audio File**: Provide path to .wav, .mp4, or .mp3 file
 5. **Model Selection**: Choose from available whisper models
-6. **Language**: Select language code for transcription
-7. **Transcription**: Runs whisper-cli and outputs transcript
-8. **Save**: Optionally save transcript to text file
+6. **Model Download Helper**: Optional step to download additional models
+7. **Language**: Select language code for transcription
+8. **Transcription**: Runs whisper-cli and outputs transcript
+9. **Save**: Optionally save transcript to text file
 
 ## Available Models
 

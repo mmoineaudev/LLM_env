@@ -226,24 +226,42 @@ main() {
     
     cd "$whisper_path"
     
-    # Clean previous build
-    if [[ -d "build" ]]; then
-        log_info "Cleaning previous build..."
-        rm -rf build
+    # Check if build already exists
+    whisper_cli="$whisper_path/build/bin/whisper-cli"
+    if [[ -f "$whisper_cli" ]]; then
+        log_success "Build already exists: $whisper_cli"
+        read -p "Rebuild anyway? (y/n): " rebuild
+        if [[ "$rebuild" == "y" ]]; then
+            log_info "Cleaning previous build..."
+            rm -rf build
+        else
+            log_info "Skipping build..."
+            cd - > /dev/null
+            echo ""
+        fi
     fi
     
-    # Configure and build
-    log_info "Running cmake configuration..."
-    cmake -B build
-    
-    log_info "Building (this may take a while)..."
-    cmake --build build -j --config Release
-    
-    if [[ $? -eq 0 ]]; then
-        log_success "Build completed successfully"
-    else
-        log_error "Build failed"
-        exit 1
+    # Only build if not skipped
+    if [[ ! -f "$whisper_cli" ]] || [[ "$rebuild" == "y" ]]; then
+        # Clean previous build
+        if [[ -d "build" ]]; then
+            log_info "Cleaning previous build..."
+            rm -rf build
+        fi
+        
+        # Configure and build
+        log_info "Running cmake configuration..."
+        cmake -B build
+        
+        log_info "Building (this may take a while)..."
+        cmake --build build -j --config Release
+        
+        if [[ $? -eq 0 ]]; then
+            log_success "Build completed successfully"
+        else
+            log_error "Build failed"
+            exit 1
+        fi
     fi
     
     cd - > /dev/null
@@ -307,8 +325,28 @@ main() {
     log_success "Model: $model_name"
     echo ""
     
-    # Step 6: Select language
-    log_info "Step 5: Language Selection"
+    # Step 6: Optional model download helper
+    log_info "Step 5: Model Download Helper"
+    echo ""
+    echo "Download more models before continuing?"
+    echo "Available models:"
+    get_available_models
+    echo ""
+    read -p "Download a model now? (y/n, default: n): " download_more
+    
+    if [[ "$download_more" == "y" ]]; then
+        read -p "Enter model name: " extra_model
+        if [[ -n "$extra_model" ]]; then
+            download_model "$extra_model" "$whisper_path"
+            log_success "Model downloaded: $extra_model"
+        fi
+    else
+        log_info "Skipping model download"
+    fi
+    echo ""
+    
+    # Step 7: Select language
+    log_info "Step 6: Language Selection"
     echo ""
     echo "Available languages:"
     get_available_languages
@@ -322,8 +360,8 @@ main() {
     log_success "Language: $lang_code"
     echo ""
     
-    # Step 7: Transcribe
-    log_info "Step 6: Transcription"
+    # Step 8: Transcribe
+    log_info "Step 7: Transcription"
     echo ""
     
     whisper_cli="$whisper_path/build/bin/whisper-cli"
@@ -347,8 +385,8 @@ main() {
     log_success "Transcription complete"
     echo ""
     
-    # Step 8: Save transcript
-    log_info "Step 7: Save Transcript"
+    # Step 9: Save transcript
+    log_info "Step 8: Save Transcript"
     echo ""
     
     read -p "Do you want to save the transcript to a text file? (y/n): " save_transcript
