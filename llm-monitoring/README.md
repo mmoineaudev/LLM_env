@@ -1,16 +1,14 @@
 # llm-monitoring
 
-Modern TUI implementation of the bash monitoring script ( LLM_env_scripts/llm-monitoring.sh ).
+Modern TUI implementation of a multiple bash panel for agentic development in command line mode ( LLM_env_scripts/llm-monitoring.sh ).
 
 ## Features
 
-- **VRAM usage** with progress bar (nvidia-smi)
-- **GPU temperature** and **fan speed**
-- **RAM usage** with progress bar
-- **Git metrics**: uncommitted lines, commit status, time since last commit
-- **Recent commits** with timestamps
-- **Keyboard controls**: q=quit, r=refresh, h=help, space=pause
-- **Auto-refresh** every 5 seconds
+- bash panels with a keyboard shortcut to enable changing focus
+  - LEFT one uses half of the screen, displays a interactive bash terminal 
+    - at the top of the LEFT one 
+      - there is a small indicator of VRAM and RAM usage in % 
+  - RIGHT-TOP and RIGHT-BOTTOM ones are different colors and display a interactive bash terminal
 - **Resize aware** - adapts to terminal size
 - **Clean UI** with proper colors and spacing
 
@@ -21,55 +19,6 @@ Modern TUI implementation of the bash monitoring script ( LLM_env_scripts/llm-mo
 - Debian-based system with NVIDIA GPU and nvidia-smi available
 - Git installed
 
-### Setup Steps
-
-1. Create project structure:
-   ```
-   llm-monitoring/
-   ├── main.py
-   ├── gpu_monitor.py      # nvidia-smi parsing
-   ├── ram_monitor.py      # /proc/meminfo parsing
-   ├── git_metrics.py      # git command wrappers
-   └── app.py              # textual application
-   ```
-
-2. Install dependencies:
-   ```bash
-   pip install textual
-   ```
-
-3. Implement GPU monitoring:
-   - Parse `nvidia-smi --query-gpu=memory.used,memory.total,temperature.gpu,fan.speed --format=csv`
-   - Extract values using subprocess
-   - Calculate VRAM percentage for progress bar
-
-4. Implement RAM monitoring:
-   - Read `/proc/meminfo` for MemTotal, MemAvailable
-   - Calculate percentage usage
-
-5. Implement Git metrics:
-   - `git diff --stat` for uncommitted lines
-   - `git log -1 --format=%ai` for last commit time
-   - `git status` for staged/unstaged changes
-
-6. Build TUI layout:
-   - Use textual's Column layout
-   - Progress widgets for VRAM and RAM
-   - Static text for GPU metrics
-   - Scrollable list for recent commits
-   - Overlay for help dialog
-
-7. Implement keyboard handlers:
-   - `on_key` method for q, r, h, space
-   - Auto-refresh timer using `set_interval`
-
-### File Structure
-
-- `main.py` - entry point, runs the app
-- `gpu_monitor.py` - GPU metrics collection
-- `ram_monitor.py` - RAM metrics collection
-- `git_metrics.py` - Git metrics collection
-- `app.py` - Textual application with UI rendering
 
 ## Requirements
 
@@ -84,15 +33,8 @@ Modern TUI implementation of the bash monitoring script ( LLM_env_scripts/llm-mo
 python main.py
 ```
 
-## Keyboard Controls
+## Development workflow 
 
-| Key | Action |
-|-----|--------|
-| q   | Quit application |
-| r   | Refresh immediately |
-| h   | Show help overlay |
-| space | Pause/resume auto-refresh |
-
-## License
-
-MIT
+-Strict TDD
+-Minimal external dependancies
+-versionning via git on current branch, commit and push after each development step. .gitignore must be present and up to date with current tech stack.
