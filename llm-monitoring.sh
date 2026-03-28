@@ -134,12 +134,17 @@ get_ram_usage() {
     fi
 }
 
-# Get uncommitted lines
+# Get uncommitted lines (modified + untracked)
 get_uncommitted_lines() {
     local repo_dir="$1"
     if [[ -d "$repo_dir/.git" ]]; then
         local uncommitted=$(cd "$repo_dir" && git diff --numstat 2>/dev/null | awk '{added+=$1; removed+=$2} END {print added+removed}')
-        echo "${uncommitted:-0}"
+        local untracked=$(cd "$repo_dir" && git ls-files --others --exclude-standard 2>/dev/null | while read -r file; do
+            if [[ -f "$file" ]]; then
+                wc -l < "$file" 2>/dev/null || echo 0
+            fi
+        done | awk '{sum+=$1} END {print sum+0}')
+        echo $((uncommitted + untracked))
     else
         echo "N/A"
     fi
