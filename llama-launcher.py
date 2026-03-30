@@ -1,34 +1,49 @@
 #!/usr/bin/env python3
 """
 llama.cpp Launcher - Interactive CLI for llama-server
+======================================================
 A simple launcher to manage GGUF models and start llama-server with configuration.
+
+USAGE:
+    Run this script directly. It will scan common locations for GGUF files,
+    save your preferences, and provide an interactive menu.
+
+CONFIGURATION:
+    Settings are stored in ~/.llama-launcher-config.json
 """
 
-import os
-import sys
 import json
+import os
 import subprocess
+import sys
+import datetime
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
+
+# ANSI color codes
+class Colors:
+    RED = "\033[91m"
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    BLUE = "\033[94m"
+    MAGENTA = "\033[95m"
+    CYAN = "\033[96m"
+    WHITE = "\033[97m"
+    BOLD = "\033[1m"
+    RESET = "\033[0m"
+
+def colorize(text: str, color: str) -> str:
+    return f"{color}{text}{Colors.RESET}"
 
 # Configuration file location
 CONFIG_FILE = Path.home() / ".llama-launcher-config.json"
 
-# Default server address (note: llama-server defaults to port 8080)
+# Default server address
 DEFAULT_ADDRESS = "http://localhost:8080"
 
 class Launcher:
     def __init__(self):
         self.config = self.load_config()
-        # Prompt for llama.cpp installation if not set
-        self.llama_cpp_dir = self.config.get("llama_cpp_dir")
-        if not self.llama_cpp_dir:
-            print("Enter path to llama.cpp installation (e.g., ~/llama.cpp):")
-            self.llama_cpp_dir = input("> ").strip()
-            if not self.llama_cpp_dir:
-                self.llama_cpp_dir = str(Path.home() / "llama.cpp")
-            self.config["llama_cpp_dir"] = self.llama_cpp_dir
-            self.save_config()
         self.llama_server_path = self.find_llama_server()
         self.gguf_files = self.scan_gguf_files()
 
@@ -36,56 +51,58 @@ class Launcher:
         """Load configuration from file or create default."""
         if CONFIG_FILE.exists():
             try:
-                with open(CONFIG_FILE, 'r') as f:
-                    return json.load(f)
+                with open(CONFIG_FILE, "r") as f:
+                    config = json.load(f)
+                # Ensure model_params exists (for configs created before this feature)
+                if "model_params" not in config:
+                    config["model_params"] = {}
+                return config
             except (json.JSONDecodeError, IOError):
                 pass
+
         # Default configuration
         return {
             "last_model": None,
             "api_key": "",
             "address": DEFAULT_ADDRESS,
             "port": 8080,
-            "n_ctx": 75000,
-            "n_gpu_layers": 20,
-            "threads": 10,
-            "batch_size": 524,
-            "use_flash_attn": False,
-            "use_mlock": False
+            "model_params": {}  # Per-model parameter storage
         }
 
     def save_config(self) -> None:
         """Save current configuration to file."""
-        with open(CONFIG_FILE, 'w') as f:
+        with open(CONFIG_FILE, "w") as f:
             json.dump(self.config, f, indent=2)
 
     def find_llama_server(self) -> Optional[str]:
         """Find llama-server binary in common locations."""
-        base = self.llama_cpp_dir
         candidates = [
-            Path(base) / "build" / "bin" / "llama-server",
-            Path(base) / "build" / "bin" "llama-server",
+            Path.home() / "Modèles/llama.cpp/build/bin/llama-server",
+            Path("~/llama.cpp/build/bin/llama-server").expanduser(),
+            Path("~/llama.cpp/build/bin/llama-server").expanduser(),
             Path("/usr/local/bin/llama-server"),
-            Path("/usr/bin/llama-server")
+            Path("/usr/bin/llama-server"),
         ]
+
         for path in candidates:
-            p = path.expanduser()
-            if p.exists() and os.access(p, os.X_OK):
-                return str(p)
+            if path.exists() and os.access(path, os.X_OK):
+                return str(path)
+
         # Check current directory
-        cwd_path = Path.cwd() / "build" / "bin" / "llama-server"
-        if cwd_path.exists() and os.access(cwd_path, os.X_OK):
-            return str(cwd_path)
+        if (Path.cwd() / "build" / "bin" / "llama-server").exists():
+            return str(Path.cwd() / "build" / "bin" / "llama-server")
+
         return None
 
     def scan_gguf_files(self) -> List[Dict[str, Any]]:
         """Scan for GGUF model files in common locations."""
         gguf_paths = [
-            Path.home() / ".lmstudio" / "models",
+            Path.home() / ".lmstudio/models",
             Path("~/models").expanduser(),
             Path("~/Downloads"),
-            Path("./models")
+            Path("./models"),
         ]
+
         models = []
         for base_path in gguf_paths:
             expanded = base_path.expanduser()
@@ -94,130 +111,200 @@ class Launcher:
             try:
                 for file in expanded.rglob("*.gguf"):
                     size_mb = file.stat().st_size / (1024 * 1024)
-                    models.append({
-                        "path": str(file),
-                        "name": file.name,
-                        "size_mb": round(size_mb, 2)
-                    })
+                    models.append(
+                        {
+                            "path": str(file),
+                            "name": file.name,
+                            "size_mb": round(size_mb, 2),
+                        }
+                    )
             except PermissionError:
                 pass
+
         return sorted(models, key=lambda x: -x["size_mb"])
 
     def display_header(self) -> None:
         """Display the launcher header with help text."""
-        print("\n" + "=" * 60)
-        print("  llama.cpp Launcher")
-        print("=" * 60)
+        print("\n" + colorize("=" * 60, Colors.BLUE))
+        print(colorize("  llama.cpp Launcher", Colors.GREEN + Colors.BOLD))
+        print(colorize("=" * 60, Colors.BLUE))
         print()
-        print("  This is an interactive CLI launcher for llama-server.")
+        print(colorize("  Interactive CLI launcher for llama-server", Colors.CYAN))
         print()
-        print("  OPTIONS:")
-        print("  1. Load last used model and start server")
-        print("     - Starts llama-server with the previously selected model")
+        print(colorize("  OPTIONS:", Colors.YELLOW + Colors.BOLD))
+        print(colorize("  1. Load last used model and start server", Colors.GREEN))
+        print(colorize("     - Starts llama-server with the previously selected model", Colors.WHITE))
         print()
-        print("  2. Choose a model then launch it")
-        print("     - Browse available GGUF files and select one to run")
+        print(colorize("  2. Choose a model then launch it", Colors.GREEN))
+        print(colorize("     - Browse available GGUF files and select one to run", Colors.WHITE))
         print()
-        print("  3. Configure API key")
-        print("     - Set or clear the authentication key for llama-server")
+        print(colorize("  3. Configure API key", Colors.GREEN))
+        print(colorize("     - Set or clear the authentication key for llama-server", Colors.WHITE))
         print()
-        print("  4. Configure address (default: http://localhost:8080)")
-        print("     - Change server host and port settings")
+        print(colorize("  4. Configure address (default: http://localhost:8080)", Colors.GREEN))
+        print(colorize("     - Change server host and port settings", Colors.WHITE))
         print()
-        print("  5. Exit")
-        print()
-        print("  6. Exit (force) - closes the script")
+        print(colorize("  5. Exit", Colors.RED))
         print()
 
     def choose_model(self) -> Optional[Dict[str, Any]]:
         """Interactive model selection with file listing."""
         if not self.gguf_files:
-            print("\nNo GGUF files found in common locations.")
+            print("\n" + colorize("No GGUF files found in common locations.", Colors.RED))
             return None
 
-        print("\nAvailable models:")
+        print("\n" + colorize("Available models:", Colors.YELLOW + Colors.BOLD))
         for i, model in enumerate(self.gguf_files, 1):
-            marker = " (last used)" if self.config["last_model"] == model["path"] else ""
-            # Show full path if filename long, else just filename
-            base = os.path.basename(model["path"])
-            path_display = base if len(base) < 40 else model["path"]
-            print(f"  {i}. {path_display} ({model['size_mb']:.1f} MB){marker}")
+            marker = colorize(" (last used)", Colors.GREEN) if self.config["last_model"] == model["path"] else ""
+            path_display = (
+                os.path.basename(model["path"])
+                if len(os.path.basename(model["path"])) < 40
+                else model["path"]
+            )
+            print(f"  {i}. {colorize(path_display, Colors.CYAN)} ({model['size_mb']:.1f} MB){marker}")
         print()
 
         while True:
             choice = input("Enter model number (or 'q' to quit): ").strip()
-            if choice.lower() == 'q':
+            if choice.lower() == "q":
                 return None
             try:
                 idx = int(choice) - 1
                 if 0 <= idx < len(self.gguf_files):
                     selected = self.gguf_files[idx]
-                    self.config["last_model"] = selected["path"]
-                    self.save_config()
-                    print(f"\nSelected: {selected['name']}")
-                    # Prompt for n_ctx with default of 75000
-                    ctx_input = input("Enter context length (default: 75000): ").strip()
+                    model_path = selected["path"]
+                    self.config["last_model"] = model_path
+
+                    # Load per-model params or use defaults
+                    if model_path not in self.config["model_params"]:
+                        self.config["model_params"][model_path] = {
+                            "n_ctx": 125000,
+                            "n_gpu_layers": 999,
+                            "threads": 22,
+                            "batch_size": 524,
+                            "cache_type": "q4_0",
+                            "use_flash_attn": True,
+                            "use_mlock": True,
+                        }
+                    params = self.config["model_params"][model_path]
+
+                    # Show current params for this model
+                    print(f"\n{colorize('Current parameters for this model:', Colors.YELLOW)}")
+                    print(f"  Context length: {params['n_ctx']}")
+                    print(f"  GPU layers: {params['n_gpu_layers']} (999=max)")
+                    print(f"  Threads: {params['threads']}")
+                    print(f"  Batch size: {params['batch_size']}")
+                    print(f"  KV Cache type: {params['cache_type']}")
+                    print(f"  Flash Attention: {'Yes' if params['use_flash_attn'] else 'No'}")
+                    print(f"  Lock in RAM: {'Yes' if params['use_mlock'] else 'No'}")
+                    print()
+
+                    # Prompt for context length
+                    ctx_input = input(
+                        f"Enter context length (default: {params['n_ctx']}): "
+                    ).strip()
                     if not ctx_input:
-                        n_ctx = 75000
+                        n_ctx = params["n_ctx"]
                     else:
                         try:
                             n_ctx = int(ctx_input)
                         except ValueError:
-                            print("Invalid number, using default 75000")
-                            n_ctx = 75000
-                    self.config["n_ctx"] = n_ctx
-                    self.save_config()
-                    # Prompt for additional params with defaults
-                    gpu_layers_input = input("Enter GPU layers (default: 20): ").strip()
+                            print(colorize("Invalid number, using current value", Colors.YELLOW))
+                            n_ctx = params["n_ctx"]
+                    params["n_ctx"] = n_ctx
+
+                    # Prompt for GPU layers
+                    gpu_layers_input = input(
+                        f"Enter GPU layers (default: {params['n_gpu_layers']}, 999=max): "
+                    ).strip()
                     if not gpu_layers_input:
-                        n_gpu_layers = 20
+                        n_gpu_layers = params["n_gpu_layers"]
                     else:
                         try:
                             n_gpu_layers = int(gpu_layers_input)
                         except ValueError:
-                            print("Invalid number, using default 20")
-                            n_gpu_layers = 20
-                    threads_input = input("Enter thread count (default: 10): ").strip()
+                            print(colorize("Invalid number, using current value", Colors.YELLOW))
+                            n_gpu_layers = params["n_gpu_layers"]
+                    params["n_gpu_layers"] = n_gpu_layers
+
+                    # Prompt for threads
+                    threads_input = input(
+                        f"Enter thread count (default: {params['threads']}): "
+                    ).strip()
                     if not threads_input:
-                        threads = 10
+                        threads = params["threads"]
                     else:
                         try:
                             threads = int(threads_input)
                         except ValueError:
-                            print("Invalid number, using default 10")
-                            threads = 10
-                    batch_size_input = input("Enter batch size (default: 524): ").strip()
+                            print(colorize("Invalid number, using current value", Colors.YELLOW))
+                            threads = params["threads"]
+                    params["threads"] = threads
+
+                    # Prompt for batch size
+                    batch_size_input = input(
+                        f"Enter batch size (default: {params['batch_size']}): "
+                    ).strip()
                     if not batch_size_input:
-                        batch_size = 524
+                        batch_size = params["batch_size"]
                     else:
                         try:
                             batch_size = int(batch_size_input)
                         except ValueError:
-                            print("Invalid number, using default 524")
-                            batch_size = 524
-                    # Flash attention prompt (yes/no)
-                    flash_attn_input = input("Use Flash Attention? (y/N): ").strip().lower()
-                    use_flash_attn = flash_attn_input == 'y'
-                    # Mlock prompt (yes/no)
-                    mlock_input = input("Lock model in RAM? (y/N): ").strip().lower()
-                    use_mlock = mlock_input == 'y'
-                    self.config["n_gpu_layers"] = n_gpu_layers
-                    self.config["threads"] = threads
-                    self.config["batch_size"] = batch_size
-                    self.config["use_flash_attn"] = use_flash_attn
-                    self.config["use_mlock"] = use_mlock
+                            print(colorize("Invalid number, using current value", Colors.YELLOW))
+                            batch_size = params["batch_size"]
+                    params["batch_size"] = batch_size
+
+                    # Prompt for KV cache type
+                    cache_type_input = input(
+                        f"Enter KV cache type (f32/f16/bf16/q8_0/q4_0/q4_1/iq4_nl/q5_0/q5_1, default: {params['cache_type']}): "
+                    ).strip()
+                    if not cache_type_input:
+                        cache_type = params["cache_type"]
+                    else:
+                        allowed_cache_types = [
+                            "f32",
+                            "f16",
+                            "bf16",
+                            "q8_0",
+                            "q4_0",
+                            "q4_1",
+                            "iq4_nl",
+                            "q5_0",
+                            "q5_1",
+                        ]
+                        if cache_type_input in allowed_cache_types:
+                            cache_type = cache_type_input
+                        else:
+                            print(colorize(f"Invalid value '{cache_type_input}', using current", Colors.YELLOW))
+                            cache_type = params["cache_type"]
+                    params["cache_type"] = cache_type
+
+                    # Prompt for Flash attention
+                    flash_attn_input = (
+                        input(f"Use Flash Attention? ({'y' if params['use_flash_attn'] else 'N'}/n): ").strip().lower()
+                    )
+                    use_flash_attn = params["use_flash_attn"] if not flash_attn_input else (flash_attn_input == "y")
+                    params["use_flash_attn"] = use_flash_attn
+
+                    # Prompt for Mlock
+                    mlock_input = input(f"Lock model in RAM? ({'y' if params['use_mlock'] else 'N'}/n): ").strip().lower()
+                    use_mlock = params["use_mlock"] if not mlock_input else (mlock_input == "y")
+                    params["use_mlock"] = use_mlock
+
                     self.save_config()
+                    print(f"\n{colorize('Selected:', Colors.GREEN)} {selected['name']}")
                     return selected
-                else:
-                    print("Invalid model number.")
             except ValueError:
                 pass
-            print("Please enter a valid choice.")
+            print(colorize("Please enter a valid choice.", Colors.YELLOW))
+
+        return None
 
     def configure_api_key(self) -> None:
         """Configure API key interactively."""
         current = self.config["api_key"]
-        print("\nEnter API key (leave empty to clear):")
+        print(f"\n{colorize('Enter API key (leave empty to clear):', Colors.YELLOW)}")
         print(f"  Current: {current[:4] + '...' if current else '(none)'}")
         new_key = input("  New key: ").strip()
         self.config["api_key"] = new_key
@@ -227,7 +314,7 @@ class Launcher:
     def configure_address(self) -> None:
         """Configure server address interactively."""
         current = self.config["address"]
-        print("\nEnter server address (default: {}):".format(DEFAULT_ADDRESS))
+        print(f"\n{colorize('Enter server address (default: {}):'.format(DEFAULT_ADDRESS), Colors.YELLOW)}")
         print(f"  Current: {current}")
         new_addr = input("  New address: ").strip()
         if not new_addr:
@@ -236,7 +323,7 @@ class Launcher:
         # Extract port from address if present
         try:
             import re
-            match = re.search(r':([0-9]{1,5})$', new_addr)
+            match = re.search(r":([0-9]{1,5})$", new_addr)
             if match:
                 self.config["port"] = int(match.group(1))
         except (ValueError, AttributeError):
@@ -247,76 +334,138 @@ class Launcher:
     def start_server(self, model_path: Optional[str] = None) -> None:
         """Start llama-server with given configuration."""
         if not self.llama_server_path:
-            print("\nError: llama-server binary not found.", file=sys.stderr)
+            print("\n" + colorize("Error: llama-server binary not found.", Colors.RED), file=sys.stderr)
             sys.exit(1)
 
+        # Determine model path
         model = model_path or self.config.get("last_model")
         if not model:
-            print("\nNo model selected. Please choose a model first.")
+            print("\n" + colorize("No model selected. Please choose a model first.", Colors.YELLOW))
             return
+
         if not os.path.exists(model):
-            print(f"\nError: Model file not found: {model}", file=sys.stderr)
+            print(f"\n{colorize('Error: Model file not found:', Colors.RED)} {model}", file=sys.stderr)
             sys.exit(1)
 
-        n_ctx = self.config.get("n_ctx", 75000)
+        # Get per-model parameters or use defaults
+        if model not in self.config["model_params"]:
+            self.config["model_params"][model] = {
+                "n_ctx": 125000,
+                "n_gpu_layers": 999,
+                "threads": 22,
+                "batch_size": 524,
+                "cache_type": "q4_0",
+                "use_flash_attn": True,
+                "use_mlock": True,
+            }
+        params = self.config["model_params"][model]
+
+        # Build command line arguments
         cmd = [
             self.llama_server_path,
-            "-m", model,
-            "--ctx-size", str(n_ctx),
-            "--host", "0.0.0.0",
-            "--port", str(self.config["port"])
+            "-m",
+            model,
+            "--ctx-size",
+            str(params["n_ctx"]),
+            "--host",
+            "0.0.0.0",
+            "--port",
+            str(self.config["port"]),
+            "-ngl",
+            str(params["n_gpu_layers"]),
+            "-t",
+            str(params["threads"]),
+            "--batch-size",
+            str(params["batch_size"]),
+            "--cache-type-k",
+            params["cache_type"],
+            "--cache-type-v",
+            params["cache_type"],
         ]
+
         if self.config.get("api_key"):
             cmd.extend(["--api-key", self.config["api_key"]])
+        if params["use_flash_attn"]:
+            cmd.append("--flash-attn")
+            cmd.append("on")
+        if params["use_mlock"]:
+            cmd.append("--mlock")
 
-        full_cmd = cmd.copy()
-        if self.config.get("api_key"):
-            full_cmd.extend(["--api-key", "***"])
+        # Create display version of command (mask API key)
+        display_cmd = cmd.copy()
+        api_key_idx = None
+        for i, arg in enumerate(cmd):
+            if arg == "--api-key":
+                api_key_idx = i + 1
+                break
+        if api_key_idx:
+            display_cmd[api_key_idx] = "***"
 
-        print("\n" + "=" * 60)
-        print("  Starting llama-server...")
-        print("=" * 60)
-        print("  Model:", os.path.basename(model))
-        print("  Address:", self.config['address'])
+        # Set environment variables for KV cache type
+        env = os.environ.copy()
+        env["LLAMA_ARG_CACHE_TYPE_K"] = params["cache_type"]
+        env["LLAMA_ARG_CACHE_TYPE_V"] = params["cache_type"]
+
+        cmd_str = " ".join(display_cmd)
+
+        print("\n" + colorize("=" * 60, Colors.BLUE))
+        print(colorize("  Starting llama-server...", Colors.GREEN + Colors.BOLD))
+        print(colorize("=" * 60, Colors.BLUE))
+        print(colorize("  Model:", Colors.CYAN), os.path.basename(model))
+        print(colorize("  Address:", Colors.CYAN), self.config["address"])
         if self.config.get("api_key"):
-            print("  API Key: *** (configured)")
+            print(colorize("  API Key:", Colors.CYAN), "*** (configured)")
+        print(colorize("  Parameters:", Colors.YELLOW))
+        print(f"    Context length: {params['n_ctx']}")
+        print(f"    GPU layers: {params['n_gpu_layers']} (999=max)")
+        print(f"    Threads: {params['threads']}")
+        print(f"    Batch size: {params['batch_size']}")
+        print(f"    KV Cache type: {params['cache_type']}")
+        print(f"    Flash Attention: {'Yes' if params['use_flash_attn'] else 'No'}")
+        print(f"    Lock in RAM: {'Yes' if params['use_mlock'] else 'No'}")
         print()
-        print("  COMMAND:")
-        print("    " + " ".join(full_cmd))
+        print(colorize("  COMMAND:", Colors.MAGENTA + Colors.BOLD))
+        print(f"    {cmd_str}")
         print()
+        print(colorize("  Press Ctrl+C to stop", Colors.RED))
+        print()
+
+        # Log command to file
+        log_file = Path.home() / ".llama-launcher.log"
+        with open(log_file, "a") as f:
+            f.write(f"{datetime.datetime.now().isoformat()} | {cmd_str}\n")
 
         try:
-            subprocess.run(cmd, env={**os.environ})
+            subprocess.run(cmd, env=env)
         except KeyboardInterrupt:
-            print("\nServer stopped.")
+            print("\n" + colorize("Server stopped.", Colors.YELLOW))
 
     def run(self) -> None:
         """Main event loop."""
         while True:
             self.display_header()
             choice = input("Enter choice: ").strip()
-            if choice == '1':
+
+            if choice == "1":
                 model_path = self.config.get("last_model")
                 if model_path and os.path.exists(model_path):
                     self.start_server(model_path)
                 else:
-                    print("\nNo last model configured or file missing.")
-            elif choice == '2':
+                    print("\n" + colorize("No last model configured or file missing.", Colors.YELLOW))
+            elif choice == "2":
                 model = self.choose_model()
                 if model:
                     self.start_server(model["path"])
-            elif choice == '3':
+            elif choice == "3":
                 self.configure_api_key()
-            elif choice == '4':
+            elif choice == "4":
                 self.configure_address()
-            elif choice == '5':
-                print("Goodbye!")
-                break
-            elif choice == '6':
-                print("Exiting.")
+            elif choice == "5":
+                print(colorize("Goodbye!", Colors.GREEN))
                 break
             else:
-                print("\nInvalid choice. Try again.")
+                print("\n" + colorize("Invalid choice. Try again.", Colors.RED))
+
 
 if __name__ == "__main__":
     launcher = Launcher()
