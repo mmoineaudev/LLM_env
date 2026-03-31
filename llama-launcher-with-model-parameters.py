@@ -200,6 +200,12 @@ class Launcher:
                     if model_path not in self.config["model_params"]:
                         self.config["model_params"][model_path] = self.get_default_model_params()
                     params = self.config["model_params"][model_path]
+                    
+                    # Merge with defaults to add any missing keys (for old configs)
+                    defaults = self.get_default_model_params()
+                    for key, value in defaults.items():
+                        if key not in params:
+                            params[key] = value
 
                     # Show current params for this model
                     print(f"\n{colorize('Current parameters for this model:', Colors.YELLOW)}")
@@ -416,6 +422,12 @@ class Launcher:
         if model not in self.config["model_params"]:
             self.config["model_params"][model] = self.get_default_model_params()
         params = self.config["model_params"][model]
+        
+        # Merge with defaults to add any missing keys (for old configs)
+        defaults = self.get_default_model_params()
+        for key, value in defaults.items():
+            if key not in params:
+                params[key] = value
 
         # Build command line arguments
         cmd = [
