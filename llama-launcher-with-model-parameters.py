@@ -43,10 +43,11 @@ CONFIG_FILE = Path.home() / ".llama-launcher-config.json"
 DEFAULT_ADDRESS = "http://localhost:8080"
 
 class Launcher:
-    def __init__(self):
+    def __init__(self, cli_sampling_params=None):
         self.config = self.load_config()
         self.llama_server_path = self.find_llama_server()
         self.gguf_files = self.scan_gguf_files()
+        self.cli_sampling_params = cli_sampling_params or {}
 
     def load_config(self) -> Dict[str, Any]:
         """Load configuration from file or create default."""
@@ -80,13 +81,13 @@ class Launcher:
             "cache_type": "q4_0",
             "use_flash_attn": True,
             "use_mlock": True,
-            # Sampling parameters
-            "temp": 0.7,
-            "top_p": 0.8,
-            "top_k": 20,
-            "min_p": 0.00,
-            "presence_penalty": 1.5,
-            "repeat_penalty": 1.0,
+            # Sampling parameters (use CLI values if provided, otherwise defaults)
+            "temp": self.cli_sampling_params.get("temp", 0.7),
+            "top_p": self.cli_sampling_params.get("top_p", 0.8),
+            "top_k": self.cli_sampling_params.get("top_k", 20),
+            "min_p": self.cli_sampling_params.get("min_p", 0.00),
+            "presence_penalty": self.cli_sampling_params.get("presence_penalty", 1.5),
+            "repeat_penalty": self.cli_sampling_params.get("repeat_penalty", 1.0),
         }
 
     def save_config(self) -> None:
@@ -546,8 +547,7 @@ class Launcher:
 if __name__ == "__main__":
     # Parse command-line arguments for sampling parameters
     parser = argparse.ArgumentParser(
-        description="llama.cpp Launcher - Interactive CLI for llama-server",
-        add_help=True
+        description="llama.cpp Launcher - Interactive CLI for llama-server"
     )
     parser.add_argument("--temp", type=float, default=0.7,
                         help="Temperature (default: 0.7)")
@@ -564,17 +564,8 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    launcher = Launcher()
-    
-    # Override defaults with command-line arguments
-    launcher.get_default_model_params.__func__ = lambda self: {
-        "n_ctx": 125000,
-        "n_gpu_layers": 999,
-        "threads": 22,
-        "batch_size": 524,
-        "cache_type": "q4_0",
-        "use_flash_attn": True,
-        "use_mlock": True,
+    # Pass CLI sampling parameters to launcher
+    cli_params = {
         "temp": args.temp,
         "top_p": args.top_p,
         "top_k": args.top_k,
@@ -583,4 +574,5 @@ if __name__ == "__main__":
         "repeat_penalty": args.repeat_penalty,
     }
     
+    launcher = Launcher(cli_sampling_params=cli_params)
     launcher.run()
