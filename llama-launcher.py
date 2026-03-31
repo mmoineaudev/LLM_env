@@ -100,7 +100,7 @@ class Launcher:
             Path.home() / ".lmstudio/models",
             Path("~/models").expanduser(),
             Path("~/Downloads"),
-            Path("./models"),
+            Path("./Models"),
         ]
 
         models = []
