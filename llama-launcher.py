@@ -98,7 +98,7 @@ class Launcher:
         """Scan for GGUF model files in common locations."""
         gguf_paths = [
             Path.home() / ".lmstudio/models",
-            Path("~/models").expanduser(),
+            Path("~/Models").expanduser(),
             Path("~/Downloads"),
             Path("./Models"),
         ]
