@@ -70,7 +70,7 @@ class Launcher:
             "port": 8080,
             "model_params": {}  # Per-model parameter storage
         }
-    
+
     def get_default_model_params(self) -> Dict[str, Any]:
         """Return default parameters for a new model."""
         return {
@@ -200,7 +200,7 @@ class Launcher:
                     if model_path not in self.config["model_params"]:
                         self.config["model_params"][model_path] = self.get_default_model_params()
                     params = self.config["model_params"][model_path]
-                    
+
                     # Merge with defaults to add any missing keys (for old configs)
                     defaults = self.get_default_model_params()
                     for key, value in defaults.items():
@@ -247,9 +247,9 @@ class Launcher:
                         n_gpu_layers = params["n_gpu_layers"]
                     else:
                         try:
-                            n_gpu_layers = int(gpu_layers_input)
+                            n_gpu_layers = gpu_layers_input
                         except ValueError:
-                            print(colorize("Invalid number, using current value", Colors.YELLOW))
+                            print(colorize("just appear i'm waiting", Colors.YELLOW))
                             n_gpu_layers = params["n_gpu_layers"]
                     params["n_gpu_layers"] = n_gpu_layers
 
@@ -320,42 +320,42 @@ class Launcher:
 
                     # Prompt for sampling parameters
                     print(f"\n{colorize('Sampling Parameters:', Colors.YELLOW)}")
-                    
+
                     temp_input = input(f"Temperature (default: {params['temp']}): ").strip()
                     if temp_input:
                         try:
                             params["temp"] = float(temp_input)
                         except ValueError:
                             print(colorize("Invalid number, keeping current value", Colors.YELLOW))
-                    
+
                     top_p_input = input(f"Top P (default: {params['top_p']}): ").strip()
                     if top_p_input:
                         try:
                             params["top_p"] = float(top_p_input)
                         except ValueError:
                             print(colorize("Invalid number, keeping current value", Colors.YELLOW))
-                    
+
                     top_k_input = input(f"Top K (default: {params['top_k']}): ").strip()
                     if top_k_input:
                         try:
                             params["top_k"] = int(top_k_input)
                         except ValueError:
                             print(colorize("Invalid number, keeping current value", Colors.YELLOW))
-                    
+
                     min_p_input = input(f"Min P (default: {params['min_p']}): ").strip()
                     if min_p_input:
                         try:
                             params["min_p"] = float(min_p_input)
                         except ValueError:
                             print(colorize("Invalid number, keeping current value", Colors.YELLOW))
-                    
+
                     presence_penalty_input = input(f"Presence Penalty (default: {params['presence_penalty']}): ").strip()
                     if presence_penalty_input:
                         try:
                             params["presence_penalty"] = float(presence_penalty_input)
                         except ValueError:
                             print(colorize("Invalid number, keeping current value", Colors.YELLOW))
-                    
+
                     repeat_penalty_input = input(f"Repeat Penalty (default: {params['repeat_penalty']}): ").strip()
                     if repeat_penalty_input:
                         try:
@@ -422,7 +422,7 @@ class Launcher:
         if model not in self.config["model_params"]:
             self.config["model_params"][model] = self.get_default_model_params()
         params = self.config["model_params"][model]
-        
+
         # Merge with defaults to add any missing keys (for old configs)
         defaults = self.get_default_model_params()
         for key, value in defaults.items():
@@ -573,9 +573,9 @@ if __name__ == "__main__":
                         help="Presence penalty (default: 1.5)")
     parser.add_argument("--repeat-penalty", type=float, default=1.0,
                         help="Repeat penalty (default: 1.0)")
-    
+
     args = parser.parse_args()
-    
+
     # Pass CLI sampling parameters to launcher
     cli_params = {
         "temp": args.temp,
@@ -585,6 +585,6 @@ if __name__ == "__main__":
         "presence_penalty": args.presence_penalty,
         "repeat_penalty": args.repeat_penalty,
     }
-    
+
     launcher = Launcher(cli_sampling_params=cli_params)
     launcher.run()

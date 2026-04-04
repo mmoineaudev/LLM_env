@@ -23,8 +23,9 @@ sudo apt install -y ccache
 echo "=== Checking NVIDIA setup ==="
 
 if ! command -v nvidia-smi &> /dev/null; then
-    echo "NVIDIA driver not detected. Installing recommended driver..."
-    sudo apt install -y nvidia-driver-550  # or 570/580 depending on your GPU (check ubuntu-drivers devices)
+    echo "NVIDIA driver not detected. Installing driver..."
+    read -p "default is nvidia-driver-550, try nvidia-driver-570 or nvidia-driver-580 ? package name : " driver_version
+    sudo apt install -y "$driver_version"  # or 570/580 depending on your GPU (check ubuntu-drivers devices)
     echo "Reboot required after driver install. Run this script again after reboot."
     exit 0
 fi
@@ -35,21 +36,22 @@ echo "Detected GPU compute capability: $COMPUTE_CAP"
 
 # Install CUDA toolkit (prefer the version that matches your driver)
 echo "=== Installing CUDA toolkit ==="
-# Option 1: Use Ubuntu's nvidia-cuda-toolkit (simpler, but sometimes older)
+# Option 1: Use Ubuntu's nvidia-cuda-toolkit (simpler, but sometimes older) => not recommended
 # sudo apt install -y nvidia-cuda-toolkit
 
 # Option 2: Official NVIDIA repo (recommended for newer CUDA) - adjust version as needed
+read -p "default is cuda-toolkit-13-0, try cuda-toolkit-13-2 ? package name : " cuda_toolkit_version
 wget -qO- https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb | sudo dpkg -i -
 sudo apt update
-sudo apt install -y cuda-toolkit-12-9   # or cuda-12-9, cuda-toolkit-13-0 etc. Match your driver!
+sudo apt install -y "$cuda_toolkit_version"   # or cuda-12-9, cuda-toolkit-13-0 etc. Match your driver!
 
-# Add CUDA to PATH and LD_LIBRARY_PATH (add to \~/.bashrc if not present)
-if ! grep -q "cuda" \~/.bashrc; then
-    echo 'export PATH=/usr/local/cuda/bin\( {PATH:+: \){PATH}}' >> \~/.bashrc
-    echo 'export LD_LIBRARY_PATH=/usr/local/cuda/lib64\( {LD_LIBRARY_PATH:+: \){LD_LIBRARY_PATH}}' >> \~/.bashrc
-    echo 'export CUDACXX=/usr/local/cuda/bin/nvcc' >> \~/.bashrc
+# Add CUDA to PATH and LD_LIBRARY_PATH (add to ~/.bashrc if not present)
+if ! grep -q "cuda" "$HOME/.bashrc"; then
+    echo 'export PATH=/usr/local/cuda/bin:$PATH' >> "$HOME/.bashrc"
+    echo "export LD_LIBRARY_PATH=/usr/local/cuda/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$HOME/.bashrc"
+    echo 'export CUDACXX=/usr/local/cuda/bin/nvcc' >> "$HOME/.bashrc"
 fi
-source \~/.bashrc
+source "$HOME/.bashrc"
 
 echo "=== Verifying CUDA ==="
 nvcc --version
@@ -81,13 +83,13 @@ cmake -B "$BUILD_DIR" \
     -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
 echo "=== Building (this can take 5-15+ minutes) ==="
-cmake --build "\( BUILD_DIR" --config Release -j \)(nproc)
+cmake --build "$BUILD_DIR" --config Release -j "$(nproc)"
 
-echo "=== Installing binaries to \~/bin for easy access ==="
-mkdir -p \~/bin
-cp "$BUILD_DIR"/bin/* \~/bin/ 2>/dev/null || true
-echo 'export PATH="$HOME/bin:$PATH"' >> \~/.bashrc
-source \~/.bashrc
+echo "=== Installing binaries to $HOME/bin for easy access ==="
+mkdir -p "$HOME/bin"
+cp "$BUILD_DIR"/bin/* "$HOME/bin/" 2>/dev/null || true
+echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.bashrc"
+source "$HOME/.bashrc"
 
 echo "=== Installation complete! ==="
 echo "Test with: llama-cli --help"
