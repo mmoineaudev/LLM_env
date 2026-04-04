@@ -103,7 +103,7 @@ step_install_dependencies() {
 }
 
 # ============================================================================
-# STEP 4: NVIDIA Driver Setup
+# STEP 3: Install ccache (Optional)
 # ============================================================================
 step_install_ccache() {
     local current=3
@@ -120,7 +120,7 @@ step_install_ccache() {
 }
 
 # ============================================================================
-# STEP 3: NVIDIA Driver Setup
+# STEP 4: NVIDIA Driver Setup
 # ============================================================================
 step_nvidia_driver() {
     local current=4
@@ -146,7 +146,7 @@ step_nvidia_driver() {
 }
 
 # ============================================================================
-# STEP 6: llama.cpp Repository Setup
+# STEP 5: CUDA Toolkit Installation
 # ============================================================================
 step_cuda_toolkit() {
     local current=5
@@ -195,7 +195,7 @@ step_cuda_toolkit() {
 }
 
 # ============================================================================
-# STEP 5: llama.cpp Repository Setup
+# STEP 6: llama.cpp Repository Setup
 # ============================================================================
 step_llama_repo() {
     local current=6
@@ -226,7 +226,7 @@ step_llama_repo() {
 }
 
 # ============================================================================
-# STEP 8: Install Binaries to ~/bin
+# STEP 7: Build llama.cpp with CUDA
 # ============================================================================
 step_build_llama() {
     local current=7
@@ -262,7 +262,7 @@ step_build_llama() {
 }
 
 # ============================================================================
-# STEP 7: Install Binaries to ~/bin
+# STEP 8: Install Binaries to $HOME/bin
 # ============================================================================
 step_install_binaries() {
     local current=8
