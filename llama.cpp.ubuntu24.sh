@@ -47,9 +47,17 @@ sudo apt install -y "$cuda_toolkit_version"   # or cuda-12-9, cuda-toolkit-13-0 
 
 # Add CUDA to PATH and LD_LIBRARY_PATH (add to ~/.bashrc if not present)
 if ! grep -q "cuda" "$HOME/.bashrc"; then
-    echo 'export PATH=/usr/local/cuda/bin:$PATH' >> "$HOME/.bashrc"
-    echo "export LD_LIBRARY_PATH=/usr/local/cuda/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$HOME/.bashrc"
-    echo 'export CUDACXX=/usr/local/cuda/bin/nvcc' >> "$HOME/.bashrc"
+    # Add CUDA to PATH (overwrite any existing CUDA path entries)
+    sed -i '/export PATH=.*cuda/d' "$HOME/.bashrc"
+    echo 'export PATH="/usr/local/cuda-13.2/bin:$PATH"' >> "$HOME/.bashrc"
+
+    # Set LD_LIBRARY_PATH explicitly
+    sed -i '/LD_LIBRARY_PATH/d' "$HOME/.bashrc"
+    echo 'export LD_LIBRARY_PATH="/usr/local/cuda-13.2/lib64"' >> "$HOME/.bashrc"
+
+    # Add CUDACXX (or CUDACCX for newer CUDA versions)
+    sed -i '/CUDACXX/d' "$HOME/.bashrc"
+    echo 'export CUDACXX=/usr/local/cuda-13.2/bin/nvcc' >> "$HOME/.bashrc"
 fi
 source "$HOME/.bashrc"
 
@@ -88,7 +96,11 @@ cmake --build "$BUILD_DIR" --config Release -j "$(nproc)"
 echo "=== Installing binaries to $HOME/bin for easy access ==="
 mkdir -p "$HOME/bin"
 cp "$BUILD_DIR"/bin/* "$HOME/bin/" 2>/dev/null || true
-echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.bashrc"
+
+# Ensure PATH includes $HOME/bin (overwrite any existing entry)
+if ! grep -q 'export PATH.*"$HOME/bin' "$HOME/.bashrc"; then
+    echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.bashrc"
+fi
 source "$HOME/.bashrc"
 
 echo "=== Installation complete! ==="
