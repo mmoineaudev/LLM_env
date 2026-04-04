@@ -220,6 +220,47 @@ step_llama_repo() {
         fi
 
         cd "$LLAMA_DIR"
+
+        # Show available tags with release dates
+        echo ""
+        echo -e "${CYAN}Available llama.cpp releases (last 30 tags):${NC}"
+        echo ""
+
+        # Get tags sorted by date, show last 30
+        git tag --sort=-creatordate | head -n 30 | while read tag; do
+            date=$(git log -1 --format='%ci' "$tag" 2>/dev/null || echo "unknown")
+            printf "  %s ... %s\n" "$tag" "$date"
+        done
+
+        echo ""
+
+        # Ask if user wants to checkout a specific tag
+        if ask "Checkout a specific release/tag?"; then
+            read -p "Enter tag name (e.g., v1.7.0, or press Enter for latest): " selected_tag
+
+            if [ -n "$selected_tag" ]; then
+                # Check if tag exists
+                if git rev-parse --verify "$selected_tag" &>/dev/null; then
+                    echo "Checking out $selected_tag..."
+                    git checkout "$selected_tag"
+                    success "Checked out $selected_tag"
+                else
+                    echo -e "${YELLOW}⊘ Tag '$selected_tag' not found. Keeping current branch.${NC}"
+                fi
+            else
+                # User pressed Enter, use latest tag
+                latest_tag=$(git describe --tags --abbrev=0 2>/dev/null)
+                if [ -n "$latest_tag" ]; then
+                    echo "Checking out latest tag: $latest_tag"
+                    git checkout "$latest_tag"
+                    success "Checked out latest tag $latest_tag"
+                else
+                    echo -e "${YELLOW}⊘ No tags found. Keeping current branch.${NC}"
+                fi
+            fi
+        else
+            skipped "Tag checkout"
+        fi
     else
         skipped "llama.cpp repository setup"
     fi
