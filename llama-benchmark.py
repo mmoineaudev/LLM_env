@@ -39,10 +39,18 @@ def colorize(text: str, color: str) -> str:
     return f"{color}{text}{Colors.RESET}"
 
 # Default llama-bench parameters
+# Note: llama-bench does NOT support context size (-c/--n-ctx) parameter!
 DEFAULT_BENCH_PARAMS = {
-    "n_prompt": 512,      # Prompt tokens for benchmark
-    "n_gen": 128,         # Generated tokens for benchmark
-    "repetitions": 3,     # Number of repetitions per test
+    "n_prompt": 512,      # Prompt tokens for benchmark (-p)
+    "n_gen": 128,         # Generated tokens for benchmark (-n)
+    "repetitions": 3,     # Number of repetitions per test (-r)
+}
+
+# Default values for required parameters when user skips selection
+DEFAULT_REQUIRED_PARAMS = {
+    "n_gpu_layers": [99],   # All layers to GPU by default
+    "threads": [8],         # Reasonable default thread count
+    "batch_size": [512],    # Default batch size (-b)
 }
 
 class BenchmarkRunner:
@@ -137,12 +145,11 @@ class BenchmarkRunner:
     
     def display_param_selection_menu(self) -> Dict[str, List[Any]]:
         """Display parameter selection menu and get user choices."""
-        # Default ranges
+        # Default ranges for optional parameters
         default_ranges = {
             "n_gpu_layers": [10, 20, 30, 40, 50, 60, 70, 80, 90, 99],
             "threads": [4, 8, 16, 22, 32],
             "batch_size": [512, 1024, 2048],
-            "n_ctx": [4096, 8192, 16384, 32768, 65536, 128000],
         }
         
         print(colorize("\n" + "=" * 60, Colors.BLUE))
@@ -151,6 +158,11 @@ class BenchmarkRunner:
         print()
         print(colorize("Select which parameters to benchmark (vary):", Colors.YELLOW))
         print(colorize("Leave empty to keep constant (use default values)", Colors.WHITE))
+        print()
+        
+        # WARNING: n_ctx (context size) is NOT supported by llama-bench!
+        print(colorize("\n⚠ NOTE: llama-bench does NOT support context size (-c/--n-ctx)", Colors.RED))
+        print(colorize("Context size is controlled only by -p (prompt size)", Colors.YELLOW))
         print()
         
         selections = {}
@@ -188,16 +200,11 @@ class BenchmarkRunner:
             except ValueError:
                 print(colorize("  Invalid input, using default", Colors.YELLOW))
         
-        # Context Size
+        # Context Size is NOT supported by llama-bench!
         print(colorize("-" * 40, Colors.CYAN))
         print(f"{colorize('Context Size (-p):', Colors.BOLD)}")
-        print(f"  Default: {default_ranges['n_ctx']}")
-        ctx_input = input("  Enter values separated by commas (or empty to skip): ").strip()
-        if ctx_input:
-            try:
-                selections["n_ctx"] = [int(x.strip()) for x in ctx_input.split(",")]
-            except ValueError:
-                print(colorize("  Invalid input, using default", Colors.YELLOW))
+        print(colorize("  SKIPPED: llama-bench does not support context size parameter!", Colors.RED))
+        print(colorize("  Use -p (prompt size) to control input length only.", Colors.YELLOW))
         
         # If no parameters selected, use all defaults
         if not selections:
@@ -213,12 +220,12 @@ class BenchmarkRunner:
         # Add model path
         cmd.extend(["-m", model_path])
         
-        # Add benchmark parameters
+        # Add benchmark parameters (prompt size, not context size)
         cmd.extend(["-p", str(params.get("n_prompt", DEFAULT_BENCH_PARAMS["n_prompt"]))])
         cmd.extend(["-n", str(params.get("n_gen", DEFAULT_BENCH_PARAMS["n_gen"]))])
         cmd.extend(["-r", str(params.get("repetitions", DEFAULT_BENCH_PARAMS["repetitions"]))])
         
-        # Add variable parameters
+        # Add variable parameters (llama-bench does NOT support -c/--n-ctx)
         if "n_gpu_layers" in params:
             cmd.extend(["-ngl", str(params["n_gpu_layers"])])
         if "threads" in params:
@@ -226,7 +233,12 @@ class BenchmarkRunner:
         if "batch_size" in params:
             cmd.extend(["-b", str(params["batch_size"])])
         
-        # Note: n_ctx is handled via -p (prompt size) for benchmark purposes
+        # Note: n_ctx is NOT supported by llama-bench!
+        # Context size can only be controlled indirectly via -p (prompt size)
+        # If user has n_ctx in params, warn them it will be ignored
+        
+        if "n_ctx" in params:
+            print(colorize(f"  ⚠ WARNING: n_ctx={params['n_ctx']} is NOT supported by llama-bench and will be ignored!", Colors.RED))
         
         # Run the benchmark
         try:
@@ -267,6 +279,7 @@ class BenchmarkRunner:
         results = []
         
         # Parse the markdown table from llama-bench output
+        # Expected columns: model | size | params | backend | ngl | n_batch | test | t/s
         lines = stdout_text.strip().split('\n')
         in_table = False
         header_parts = None
@@ -287,8 +300,8 @@ class BenchmarkRunner:
             if in_table and all('-' in p or ':' in p or not p for p in parts):
                 continue
             
-            # This should be a data row
-            if in_table and len(parts) >= 7:
+            # This should be a data row - llama-bench outputs 8 columns
+            if in_table and len(parts) >= 8:
                 # Check if this looks like a data row (has numeric values)
                 if any(re.match(r'^[\d.]+', p) for p in parts):
                     # Extract t/s value from the last column (may have ± error)
@@ -337,6 +350,11 @@ class BenchmarkRunner:
         if not param_names:
             return []
         
+        # Ensure required parameters have defaults if not selected
+        for req_param, default_values in DEFAULT_REQUIRED_PARAMS.items():
+            if req_param not in selections:
+                selections[req_param] = default_values
+        
         # Generate cartesian product using recursion
         def generate_combinations(index: int, current: Dict[str, Any]):
             if index == len(param_names):
@@ -367,9 +385,12 @@ class BenchmarkRunner:
                 "n_gpu_layers": "GPU Layers (-ngl)",
                 "threads": "Threads (-t)",
                 "batch_size": "Batch Size (-b)",
-                "n_ctx": "Context Size (-p)"
             }.get(param, param)
             print(f"    {display_name}: {values}")
+        
+        # Note about n_ctx
+        if "n_ctx" in selections:
+            print(colorize("\n  ⚠ WARNING: Context size parameter is ignored by llama-bench!", Colors.RED))
         
         combinations = self.generate_test_combinations(selections)
         model_results = []
@@ -466,9 +487,9 @@ class BenchmarkRunner:
                 output.append(f"**Path:** `{result['model']['path']}`")
                 output.append(f"**Size:** {result['model']['size_mb']:.1f} MB\n")
                 
-                # Create table header
-                output.append("| n_gpu_layers | threads | batch_size | n_ctx | status | time (ms) | t/s |")
-                output.append("|-------------:|---------|-----------:|------:|--------|----------:|----:|")
+                # Create table header (removed n_ctx - not supported by llama-bench)
+                output.append("| n_gpu_layers | threads | batch_size | status | time (ms) | t/s |")
+                output.append("|-------------:|---------|-----------:|--------|----------:|----:|")
                 
                 # Add results for this model
                 for r in results:
@@ -483,9 +504,13 @@ class BenchmarkRunner:
                             tps_value = "ERROR"
                             time_ms = "N/A"
                         
+                        # Only include params that exist (n_ctx may not be present)
+                        ngl = r['params'].get('n_gpu_layers', 'N/A')
+                        threads = r['params'].get('threads', 'N/A')
+                        batch = r['params'].get('batch_size', 'N/A')
+                        
                         output.append(
-                            f"| {r['params']['n_gpu_layers']} | {r['params']['threads']} | "
-                            f"{r['params']['batch_size']} | {r['params']['n_ctx']} | {status} | {time_ms} | {tps_value} |"
+                            f"| {ngl} | {threads} | {batch} | {status} | {time_ms} | {tps_value} |"
                         )
                 
                 output.append("")

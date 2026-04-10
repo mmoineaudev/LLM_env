@@ -283,6 +283,7 @@ step_build_llama() {
             rm -rf "$BUILD_DIR"
 
             echo "=== Configuring CMake with CUDA ==="
+            COMPUTE_CAP=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -n1 | tr -d '.')
             cmake -B "$BUILD_DIR" \
                 -DGGML_CUDA=ON \
                 -DCMAKE_CUDA_ARCHITECTURES="$COMPUTE_CAP" \
@@ -348,7 +349,7 @@ step_nvidia_driver
 step_cuda_toolkit
 step_llama_repo
 step_build_llama
-step_install_binaries
+#step_install_binaries # optional
 
 echo ""
 echo -e "${GREEN}=== Installation Complete! ===${NC}"

@@ -463,6 +463,10 @@ class Launcher:
             str(params["presence_penalty"]),
             "--repeat-penalty",
             str(params["repeat_penalty"]),
+            "--no-cache-prompt",
+            "--verbose",
+            "--offline"
+
         ]
 
         if self.config.get("api_key"):
