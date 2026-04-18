@@ -43,11 +43,12 @@ CONFIG_FILE = Path.home() / ".llama-launcher-config.json"
 DEFAULT_ADDRESS = "http://localhost:8080"
 
 class Launcher:
-    def __init__(self, cli_sampling_params=None):
+    def __init__(self, cli_sampling_params=None, chat_template_kwargs=None):
         self.config = self.load_config()
         self.llama_server_path = self.find_llama_server()
         self.gguf_files = self.scan_gguf_files()
         self.cli_sampling_params = cli_sampling_params or {}
+        self.chat_template_kwargs = chat_template_kwargs
 
     def load_config(self) -> Dict[str, Any]:
         """Load configuration from file or create default."""
@@ -465,9 +466,11 @@ class Launcher:
             str(params["repeat_penalty"]),
             "--no-cache-prompt",
             "--verbose",
-            "--offline"
-
+            "--offline",
         ]
+
+        if self.chat_template_kwargs:
+            cmd.extend(["--chat-template-kwargs", self.chat_template_kwargs])
 
         if self.config.get("api_key"):
             cmd.extend(["--api-key", self.config["api_key"]])
@@ -577,8 +580,26 @@ if __name__ == "__main__":
                         help="Presence penalty (default: 1.5)")
     parser.add_argument("--repeat-penalty", type=float, default=1.0,
                         help="Repeat penalty (default: 1.0)")
+    parser.add_argument("--chat-template-kwargs", type=str, action="append", default=None,
+                        help='JSON string of chat template kwargs. Can be specified multiple times; values will be merged. e.g. \'{"enable_thinking":false}\' to disable thinking. Default: absent (no flag).')
 
     args = parser.parse_args()
+
+    # Merge all --chat-template-kwargs JSON strings into a single dict, then serialize back
+    chat_template_kwargs_merged = None
+    if args.chat_template_kwargs:
+        merged = {}
+        for kwarg_str in args.chat_template_kwargs:
+            try:
+                parsed = json.loads(kwarg_str)
+                if isinstance(parsed, dict):
+                    merged.update(parsed)
+                else:
+                    print(colorize(f"Warning: --chat-template-kwargs value is not a JSON object, skipping: {kwarg_str}", Colors.YELLOW))
+            except json.JSONDecodeError as e:
+                print(colorize(f"Warning: invalid JSON in --chat-template-kwargs: {kwarg_str} ({e})", Colors.YELLOW))
+        if merged:
+            chat_template_kwargs_merged = json.dumps(merged)
 
     # Pass CLI sampling parameters to launcher
     cli_params = {
@@ -590,5 +611,5 @@ if __name__ == "__main__":
         "repeat_penalty": args.repeat_penalty,
     }
 
-    launcher = Launcher(cli_sampling_params=cli_params)
+    launcher = Launcher(cli_sampling_params=cli_params, chat_template_kwargs=chat_template_kwargs_merged)
     launcher.run()
