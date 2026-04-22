@@ -91,7 +91,7 @@ class Launcher:
             "repeat_penalty": self.cli_sampling_params.get("repeat_penalty", 1.0),
             # Chat template kwargs (thinking control)
             "enable_thinking": True,
-            "preserve_thinking": False,
+            "preserve_thinking": True,
         }
 
     def save_config(self) -> None:
@@ -228,8 +228,8 @@ class Launcher:
                     print(f"    Presence Penalty: {params['presence_penalty']}")
                     print(f"    Repeat Penalty: {params['repeat_penalty']}")
                     print(f"  Chat template kwargs:")
-                    print(f"    Enable thinking: {'Yes' if params['enable_thinking'] else 'No'}")
-                    print(f"    Preserve thinking: {'Yes' if params['preserve_thinking'] else 'No'}")
+                    print(f"    Enable thinking: {'Yes' if params.get('enable_thinking') else 'No'}")
+                    print(f"    Preserve thinking: {'Yes' if params.get('preserve_thinking') else 'No'}")
                     print()
 
                     # Prompt for context length
@@ -373,11 +373,11 @@ class Launcher:
                     # Chat template kwargs (thinking control for Qwen3.6+)
                     print(f"\n{colorize('Chat Template Kwargs (Thinking Control):', Colors.YELLOW)}")
 
-                    et_input = input(f"Enable thinking? ({'y' if params['enable_thinking'] else 'N'}/y): ").strip().lower()
-                    params["enable_thinking"] = not et_input if et_input in ("y", "n") else params["enable_thinking"]
+                    et_input = input(f"Enable thinking? ({'Y/n' if params.get('enable_thinking') else 'y/N'}): ").strip().lower()
+                    params["enable_thinking"] = et_input != "n" if et_input in ("y", "n") else params.get("enable_thinking", True)
 
-                    pt_input = input(f"Preserve thinking output? ({'y' if params['preserve_thinking'] else 'N'}/n): ").strip().lower()
-                    params["preserve_thinking"] = pt_input == "y" if pt_input in ("y", "n") else params["preserve_thinking"]
+                    pt_input = input(f"Preserve thinking output? ({'Y/n' if params.get('preserve_thinking') else 'y/N'}): ").strip().lower()
+                    params["preserve_thinking"] = pt_input != "n" if pt_input in ("y", "n") else params.get("preserve_thinking", True)
 
                     self.save_config()
                     print(f"\n{colorize('Selected:', Colors.GREEN)} {selected['name']}")
@@ -484,19 +484,19 @@ class Launcher:
             "--offline",
         ]
 
-        # Build chat template kwargs: merge CLI args with per-model params
+        # Build chat template kwargs: only include when BOTH are true
+        model_kwargs = {}
+        if params.get("enable_thinking") and params.get("preserve_thinking"):
+            model_kwargs["enable_thinking"] = True
+            model_kwargs["preserve_thinking"] = True
+
+        # Merge CLI kwargs with model-level kwargs
         chat_kwargs = {}
         if self.chat_template_kwargs:
             try:
                 chat_kwargs.update(json.loads(self.chat_template_kwargs))
             except (json.JSONDecodeError, TypeError):
                 pass
-        # Per-model thinking control (only add if explicitly set from defaults)
-        model_kwargs = {}
-        if params.get("enable_thinking") is not None:
-            model_kwargs["enable_thinking"] = params["enable_thinking"]
-        if params.get("preserve_thinking") is not None:
-            model_kwargs["preserve_thinking"] = params["preserve_thinking"]
         chat_kwargs.update(model_kwargs)
 
         if chat_kwargs:
