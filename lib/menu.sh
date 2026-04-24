@@ -179,22 +179,44 @@ edit_model_params() {
 
     echo
 
-    cache_type="${_params[cache_type]}"
-    colorize "  KV Cache type: $cache_type" "$COLOR_CYAN"
+    # --- KV Cache types (decorrelated: K and V asked separately) ---
+    echo
+    colorize "------------------------------------------------------------" "$COLOR_BLUE"
+    colorize "  KV Cache Types:" "$COLOR_YELLOW${COLOR_BOLD}"
+    echo
+
+    cache_type_k="${_params[cache_type_k]}"
+    colorize "  Current K cache type: $cache_type_k" "$COLOR_CYAN"
     cache_options=("f32" "f16" "bf16" "q8_0" "q4_0" "q4_1" "iq4_nl" "q5_0" "q5_1")
 
-    # Use select for cache type
-    cache_choice_idx=999  # sentinel
+    # Use select for K cache type
     while true; do
         select ct in "${cache_options[@]}"; do
             if [[ -n "$ct" ]]; then
-                cache_type="$ct"
+                cache_type_k="$ct"
                 break 2
             fi
         done
     done
 
-    _params[cache_type]="$cache_type"
+    _params[cache_type_k]="$cache_type_k"
+
+    echo
+
+    cache_type_v="${_params[cache_type_v]}"
+    colorize "  Current V cache type: $cache_type_v" "$COLOR_CYAN"
+
+    # Use select for V cache type
+    while true; do
+        select ct in "${cache_options[@]}"; do
+            if [[ -n "$ct" ]]; then
+                cache_type_v="$ct"
+                break 2
+            fi
+        done
+    done
+
+    _params[cache_type_v]="$cache_type_v"
 
     echo
 

@@ -27,7 +27,8 @@ build_launch_command() {
     n_gpu_layers="${_p[n_gpu_layers]}"
     threads="${_p[threads]}"
     batch_size="${_p[batch_size]}"
-    cache_type="${_p[cache_type]}"
+    cache_type_k="${_p[cache_type_k]}"
+    cache_type_v="${_p[cache_type_v]}"
     use_flash_attn="${_p[use_flash_attn]}"
     use_mlock="${_p[use_mlock]}"
     temp="${_p[temp]}"
@@ -49,8 +50,8 @@ build_launch_command() {
     BUILD_LAUNCH_ARRAY+=("-ngl" "$n_gpu_layers")
     BUILD_LAUNCH_ARRAY+=("-t" "$threads")
     BUILD_LAUNCH_ARRAY+=("--batch-size" "$batch_size")
-    BUILD_LAUNCH_ARRAY+=("--cache-type-k" "$cache_type")
-    BUILD_LAUNCH_ARRAY+=("--cache-type-v" "$cache_type")
+    BUILD_LAUNCH_ARRAY+=("--cache-type-k" "$cache_type_k")
+    BUILD_LAUNCH_ARRAY+=("--cache-type-v" "$cache_type_v")
 
     # Sampling parameters
     BUILD_LAUNCH_ARRAY+=("--temp" "$temp")
@@ -170,7 +171,8 @@ launch_server() {
     n_gpu_layers="${_lp[n_gpu_layers]}"
     threads="${_lp[threads]}"
     batch_size="${_lp[batch_size]}"
-    cache_type="${_lp[cache_type]}"
+     cache_type_k="${_lp[cache_type_k]}"
+    cache_type_v="${_lp[cache_type_v]}"
     use_flash_attn="${_lp[use_flash_attn]}"
     use_mlock="${_lp[use_mlock]}"
     temp="${_lp[temp]}"
@@ -200,7 +202,8 @@ launch_server() {
     echo "    GPU layers:   $n_gpu_layers"
     echo "    Threads:      $threads"
     echo "    Batch size:   $batch_size"
-    echo "    KV Cache:     $cache_type"
+    echo "    KV Cache K:   $cache_type_k"
+    echo "    KV Cache V:   $cache_type_v"
     echo "    Flash Attn:   $use_flash_attn"
     echo "    Lock RAM:     $use_mlock"
     colorize "  --------------------------------------------------------" "$COLOR_BLUE"
@@ -231,11 +234,7 @@ launch_server() {
     fi
 
     # Reuse the command array from build_launch_command (no duplication)
-    exec_cmd=("${BUILD_LAUNCH_ARRAY[@]}")
-
-    # Execute with environment variables for cache type
-    export LLAMA_ARG_CACHE_TYPE_K="$cache_type"
-    export LLAMA_ARG_CACHE_TYPE_V="$cache_type"
+     exec_cmd=("${BUILD_LAUNCH_ARRAY[@]}")
 
     echo "${exec_cmd[@]} "
 

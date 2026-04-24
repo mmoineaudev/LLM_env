@@ -28,7 +28,8 @@ get_default_model_params() {
         n_gpu_layers auto \
         threads "$DEFAULT_NPROC" \
         batch_size 1024 \
-        cache_type q8_0 \
+        cache_type_k q8_0 \
+        cache_type_v q8_0 \
         use_flash_attn true \
         use_mlock true \
         temp "$cli_temp" \
