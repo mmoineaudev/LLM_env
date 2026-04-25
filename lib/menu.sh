@@ -187,7 +187,7 @@ edit_model_params() {
 
     cache_type_k="${_params[cache_type_k]}"
     colorize "  Current K cache type: $cache_type_k" "$COLOR_CYAN"
-    cache_options=("f32" "f16" "bf16" "q8_0" "q4_0" "q4_1" "iq4_nl" "q5_0" "q5_1")
+    cache_options=("f32" "f16" "bf16" "q8_0" "q4_0" "q4_1" "iq4_nl" "q5_0" "q5_1" "q3_0" "q2_0")
 
     # Use select for K cache type
     while true; do
