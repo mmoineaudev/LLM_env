@@ -50,8 +50,14 @@ build_launch_command() {
     BUILD_LAUNCH_ARRAY+=("-ngl" "$n_gpu_layers")
     BUILD_LAUNCH_ARRAY+=("-t" "$threads")
     BUILD_LAUNCH_ARRAY+=("--batch-size" "$batch_size")
-    BUILD_LAUNCH_ARRAY+=("--cache-type-k" "$cache_type_k")
-    BUILD_LAUNCH_ARRAY+=("--cache-type-v" "$cache_type_v")
+
+    # KV Cache types -- only add flags if not "none"
+    if [[ "$cache_type_k" != "none" ]]; then
+        BUILD_LAUNCH_ARRAY+=("--cache-type-k" "$cache_type_k")
+    fi
+    if [[ "$cache_type_v" != "none" ]]; then
+        BUILD_LAUNCH_ARRAY+=("--cache-type-v" "$cache_type_v")
+    fi
 
     # Sampling parameters
     BUILD_LAUNCH_ARRAY+=("--temp" "$temp")
@@ -66,11 +72,9 @@ build_launch_command() {
     BUILD_LAUNCH_ARRAY+=("--verbose")
     BUILD_LAUNCH_ARRAY+=("--offline")
 
-    # Chat template kwargs — only include when BOTH enable_thinking AND preserve_thinking are true
-    if [[ "$enable_thinking" == "true" && "$preserve_thinking" == "true" ]]; then
-        chat_kwargs="$(build_json enable_thinking true preserve_thinking true)"
-        BUILD_LAUNCH_ARRAY+=("--chat-template-kwargs" "'${chat_kwargs}'")
-    fi
+    # Chat template kwargs -- always pass both values to control thinking behavior
+    chat_kwargs="$(build_json enable_thinking "$enable_thinking" preserve_thinking "$preserve_thinking")"
+    BUILD_LAUNCH_ARRAY+=("--chat-template-kwargs" "'${chat_kwargs}'")
 
     # CLI-level chat template kwargs (from user flags) — merge on top if provided
     if [[ -n "${CLI_CHAT_TEMPLATE_KWARGS:-}" ]]; then
@@ -179,6 +183,8 @@ launch_server() {
     top_p="${_lp[top_p]}"
     top_k="${_lp[top_k]}"
     min_p="${_lp[min_p]}"
+    enable_thinking="${_lp[enable_thinking]}"
+    preserve_thinking="${_lp[preserve_thinking]}"
     presence_penalty="${_lp[presence_penalty]}"
     repeat_penalty="${_lp[repeat_penalty]}"
 
@@ -206,6 +212,8 @@ launch_server() {
     echo "    KV Cache V:   $cache_type_v"
     echo "    Flash Attn:   $use_flash_attn"
     echo "    Lock RAM:     $use_mlock"
+    echo "    Enable Thinking: $enable_thinking"
+    echo "    Preserve Thinking: $preserve_thinking"
     colorize "  --------------------------------------------------------" "$COLOR_BLUE"
     colorize "  Sampling:" "$COLOR_YELLOW${COLOR_BOLD}"
     echo "      Temperature:      $temp"
