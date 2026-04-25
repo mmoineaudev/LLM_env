@@ -187,7 +187,7 @@ edit_model_params() {
 
     cache_type_k="${_params[cache_type_k]}"
     colorize "  Current K cache type: $cache_type_k" "$COLOR_CYAN"
-    cache_options=("Keep ($cache_type_k)" "f32" "f16" "bf16" "q8_0" "q4_0" "q4_1" "iq4_nl" "q5_0" "q5_1" "q3_0" "q2_0" "none")
+    cache_options=("Keep ($cache_type_k)" "f32" "f16" "bf16" "q8_0" "q4_0" "q4_1" "iq4_nl" "q5_0" "q5_1" "none")
 
  # Use select for K cache type
     while true; do
@@ -210,7 +210,7 @@ edit_model_params() {
 
     cache_type_v="${_params[cache_type_v]}"
     colorize "  Current V cache type: $cache_type_v" "$COLOR_CYAN"
-    cache_options=("Keep ($cache_type_v)" "f32" "f16" "bf16" "q8_0" "q4_0" "q4_1" "iq4_nl" "q5_0" "q5_1" "q3_0" "q2_0" "none")
+    cache_options=("Keep ($cache_type_v)" "f32" "f16" "bf16" "q8_0" "q4_0" "q4_1" "iq4_nl" "q5_0" "q5_1" "none")
 
 # Use select for V cache type
     while true; do
