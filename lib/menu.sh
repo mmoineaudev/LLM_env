@@ -189,12 +189,11 @@ edit_model_params() {
     colorize "  Current K cache type: $cache_type_k" "$COLOR_CYAN"
     cache_options=("Keep ($cache_type_k)" "f32" "f16" "bf16" "q8_0" "q4_0" "q4_1" "iq4_nl" "q5_0" "q5_1" "q3_0" "q2_0" "none")
 
-    # Use select for K cache type
+ # Use select for K cache type
     while true; do
         select ct in "${cache_options[@]}"; do
             if [[ -n "$ct" ]]; then
-                # Handle "Keep (value)" option
-                if [[ "$ct" == Keep\ (*) ]]; then
+                if [[ "${ct:0:5}" == "Keep " ]]; then
                     cache_type_k="${ct#Keep (}"
                     cache_type_k="${cache_type_k%)}"
                 else
@@ -213,12 +212,11 @@ edit_model_params() {
     colorize "  Current V cache type: $cache_type_v" "$COLOR_CYAN"
     cache_options=("Keep ($cache_type_v)" "f32" "f16" "bf16" "q8_0" "q4_0" "q4_1" "iq4_nl" "q5_0" "q5_1" "q3_0" "q2_0" "none")
 
-    # Use select for V cache type
+# Use select for V cache type
     while true; do
         select ct in "${cache_options[@]}"; do
             if [[ -n "$ct" ]]; then
-                # Handle "Keep (value)" option
-                if [[ "$ct" == Keep\ (*) ]]; then
+                if [[ "${ct:0:5}" == "Keep " ]]; then
                     cache_type_v="${ct#Keep (}"
                     cache_type_v="${cache_type_v%)}"
                 else
