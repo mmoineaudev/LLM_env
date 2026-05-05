@@ -161,10 +161,15 @@ step_cuda_toolkit() {
             echo -e "${CYAN}Detected GPU compute capability: ${COMPUTE_CAP}${NC}"
 
             echo "=== Installing CUDA toolkit ==="
-            read -p "default is cuda-toolkit-13-0, try cuda-toolkit-13-2 ? package name : " cuda_toolkit_version
-            wget -qO- https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb | sudo dpkg -i -
-            sudo apt update
-            sudo apt install -y "$cuda_toolkit_version"
+
+            wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-ubuntu2404.pin
+            sudo mv cuda-ubuntu2404.pin /etc/apt/preferences.d/cuda-repository-pin-600
+            wget https://developer.download.nvidia.com/compute/cuda/13.2.1/local_installers/cuda-repo-ubuntu2404-13-2-local_13.2.1-595.58.03-1_amd64.deb
+            sudo dpkg -i cuda-repo-ubuntu2404-13-2-local_13.2.1-595.58.03-1_amd64.deb
+            sudo cp /var/cuda-repo-ubuntu2404-13-2-local/cuda-*-keyring.gpg /usr/share/keyrings/
+            sudo apt-get update
+            sudo apt-get -y install cuda-toolkit-13-2
+
             success "CUDA toolkit installed"
 
             # Configure CUDA environment variables
@@ -347,7 +352,7 @@ step_install_dependencies
 step_install_ccache
 step_nvidia_driver
 step_cuda_toolkit
-step_llama_repo
+#step_llama_repo
 step_build_llama
 #step_install_binaries # optional
 
