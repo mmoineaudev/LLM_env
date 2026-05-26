@@ -49,6 +49,11 @@ skipped() {
 # STEP 0: DANGER! Purge Old NVIDIA/CUDA Packages (Optional)
 # ============================================================================
 step_purge_nvidia() {
+    echo -e "${RED}===REMI, LIS BORDEL AVANT DE CLICKER===${NC}"
+    echo -e "${RED}quand tu cliques ça fait rien${NC}"
+    sleep 15
+    read -p "Ctrl +c remi" ctrl_plus_c
+
     local current=0
     local total=8
 
@@ -162,7 +167,7 @@ step_cuda_toolkit() {
 
             echo "=== Installing CUDA toolkit ==="
 
-            wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-ubuntu2404.pin
+            wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/arm64/cuda-ubuntu2404.pin
             sudo mv cuda-ubuntu2404.pin /etc/apt/preferences.d/cuda-repository-pin-600
             wget https://developer.download.nvidia.com/compute/cuda/13.2.1/local_installers/cuda-repo-ubuntu2404-13-2-local_13.2.1-595.58.03-1_amd64.deb
             sudo dpkg -i cuda-repo-ubuntu2404-13-2-local_13.2.1-595.58.03-1_amd64.deb
