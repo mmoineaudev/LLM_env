@@ -346,12 +346,12 @@ echo "   llama.cpp + CUDA Installation Script for Ubuntu 24.04   "
 echo "============================================================"
 echo -e "${NC}"
 
-step_purge_nvidia
+#step_purge_nvidia
 step_update_packages
-step_install_dependencies
-step_install_ccache
-step_nvidia_driver
-step_cuda_toolkit
+#step_install_dependencies
+#step_install_ccache
+#step_nvidia_driver
+#step_cuda_toolkit
 #step_llama_repo
 step_build_llama
 #step_install_binaries # optional
