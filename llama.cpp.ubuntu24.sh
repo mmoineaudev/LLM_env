@@ -49,11 +49,6 @@ skipped() {
 # STEP 0: DANGER! Purge Old NVIDIA/CUDA Packages (Optional)
 # ============================================================================
 step_purge_nvidia() {
-    echo -e "${RED}===REMI, LIS BORDEL AVANT DE CLICKER===${NC}"
-    echo -e "${RED}quand tu cliques ça fait rien${NC}"
-    sleep 15
-    read -p "Ctrl +c remi" ctrl_plus_c
-
     local current=0
     local total=8
 
@@ -351,12 +346,12 @@ echo "   llama.cpp + CUDA Installation Script for Ubuntu 24.04   "
 echo "============================================================"
 echo -e "${NC}"
 
-step_purge_nvidia
+#step_purge_nvidia
 step_update_packages
-step_install_dependencies
-step_install_ccache
-step_nvidia_driver
-step_cuda_toolkit
+#step_install_dependencies
+#step_install_ccache
+#step_nvidia_driver
+#step_cuda_toolkit
 #step_llama_repo
 step_build_llama
 #step_install_binaries # optional
